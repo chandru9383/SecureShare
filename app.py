@@ -1,15 +1,16 @@
-from flask import Flask, render_template, request, jsonify, send_file, url_for
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import uuid
 import os
-import io
-from crypto_utils import encrypt_secret, decrypt_secret
+from io import BytesIO
+from crypto_utils import encrypt_data, decrypt_data
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///secrets.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 db = SQLAlchemy(app)
 
@@ -21,6 +22,9 @@ class Secret(db.Model):
     has_password = db.Column(db.Boolean, default=False)
     expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    filename = db.Column(db.String(255), nullable=True)
+    content_type = db.Column(db.String(100), nullable=True)
+    is_file = db.Column(db.Boolean, default=False)
 
     def is_expired(self):
         return self.expires_at and self.expires_at < datetime.utcnow()
@@ -49,17 +53,29 @@ def index():
 @app.route('/create', methods=['POST'])
 def create_secret():
     try:
-        plaintext = request.form.get('text', '').strip()
         password = request.form.get('password', '')
         views = int(request.form.get('views', 1))
         expiry_hours = request.form.get('expiry', 'never')
+        
+        if 'file' in request.files and request.files['file'].filename:
+            file = request.files['file']
+            filename = file.filename
+            content_type = file.content_type or 'application/octet-stream'
+            data = file.read()
+            is_file = True
+        else:
+            plaintext = request.form.get('text', '').strip()
+            if not plaintext:
+                return jsonify({'error': 'Please enter text or select a file'}), 400
+            data = plaintext.encode('utf-8')
+            filename = None
+            content_type = 'text/plain'
+            is_file = False
+            
     except ValueError:
         return jsonify({'error': 'Invalid input'}), 400
 
-    if not plaintext:
-        return jsonify({'error': 'Secret cannot be empty'}), 400
-
-    ciphertext = encrypt_secret(plaintext, password)
+    ciphertext = encrypt_data(data, password)
     secret_id = uuid.uuid4().hex[:8]
 
     expires_at = None
@@ -72,39 +88,25 @@ def create_secret():
         ciphertext=ciphertext,
         views_left=views,
         has_password=bool(password),
-        expires_at=expires_at
+        expires_at=expires_at,
+        filename=filename,
+        content_type=content_type,
+        is_file=is_file
     )
     db.session.add(secret)
     db.session.commit()
 
-    link = url_for('view_secret_page', secret_id=secret_id, _external=True)
+    link = request.host_url + 's/' + secret_id
 
     return jsonify({
         'success': True,
         'link': link,
         'id': secret_id,
         'views': views,
-        'expires': expiry_hours if expiry_hours != 'never' else 'Never'
+        'expires': expiry_hours if expiry_hours != 'never' else 'Never',
+        'is_file': is_file,
+        'filename': filename
     })
-
-@app.route('/qrcode/<secret_id>')
-def qrcode_image(secret_id):
-    try:
-        import qrcode
-    except ImportError:
-        return jsonify({'error': 'QR code generator is unavailable'}), 501
-
-    target_url = url_for('view_secret_page', secret_id=secret_id, _external=True)
-    qr = qrcode.QRCode(version=1, box_size=8, border=2)
-    qr.add_data(target_url)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color='black', back_color='white')
-
-    buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
-    buffer.seek(0)
-
-    return send_file(buffer, mimetype='image/png')
 
 @app.route('/s/<secret_id>')
 def view_secret_page(secret_id):
@@ -116,7 +118,11 @@ def view_secret_page(secret_id):
             db.session.commit()
         return render_template('burned.html', message="This secret no longer exists."), 404
 
-    return render_template('view.html', secret_id=secret_id, has_password=secret.has_password)
+    return render_template('view.html', 
+                         secret_id=secret_id, 
+                         has_password=secret.has_password,
+                         is_file=secret.is_file,
+                         filename=secret.filename)
 
 @app.route('/s/<secret_id>/decrypt', methods=['POST'])
 def decrypt_secret_route(secret_id):
@@ -138,7 +144,7 @@ def decrypt_secret_route(secret_id):
     password = request.form.get('password', '')
 
     try:
-        plaintext = decrypt_secret(secret.ciphertext, password)
+        data = decrypt_data(secret.ciphertext, password)
     except ValueError:
         return jsonify({'error': 'Incorrect password'}), 401
 
@@ -151,20 +157,29 @@ def decrypt_secret_route(secret_id):
     else:
         db.session.commit()
 
+    if secret.is_file and secret.filename:
+        return send_file(
+            BytesIO(data),
+            download_name=secret.filename,
+            mimetype=secret.content_type,
+            as_attachment=True
+        )
+
     return jsonify({
         'success': True,
-        'text': plaintext,
+        'text': data.decode('utf-8'),
         'burned': burned,
-        'views_left': secret.views_left if not burned else 0
+        'views_left': secret.views_left if not burned else 0,
+        'is_file': secret.is_file
     })
 
 @app.errorhandler(404)
 def not_found(error):
-    return render_template('error.html', message="This page does not exist."), 404
+    return render_template('burned.html', message="This secret does not exist."), 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    return render_template('error.html', message="Something went wrong on our end."), 500
+    return render_template('burned.html', message="Something went wrong on our end."), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

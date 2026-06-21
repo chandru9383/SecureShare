@@ -5,74 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Secret – SecureShare</title>
     <style>
-        :root {
-            color-scheme: dark;
-            --bg: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            --card: #1e1e2f;
-            --card-border: rgba(255,255,255,0.06);
-            --text: #f0f0ff;
-            --muted: #a0a0b8;
-            --surface: #2a2a40;
-            --surface-border: #3a3a55;
-            --input-text: #f0f0ff;
-            --button: linear-gradient(135deg, #f7971e, #ffd200);
-            --button-text: #1a1a2e;
-            --secondary: #3a3a55;
-            --shadow: rgba(0,0,0,0.8);
-            --toggle-bg: rgba(255,255,255,0.08);
-            --toggle-text: #f0f0ff;
-        }
-        body[data-theme='light'] {
-            --bg: #f3f4fb;
-            --card: #ffffff;
-            --card-border: rgba(15,23,42,0.08);
-            --text: #111827;
-            --muted: #4b5563;
-            --surface: #f8fafc;
-            --surface-border: #d1d5db;
-            --input-text: #111827;
-            --button: linear-gradient(135deg, #2563eb, #38bdf8);
-            --button-text: #ffffff;
-            --secondary: #d1d5db;
-            --shadow: rgba(15,23,42,0.12);
-            --toggle-bg: rgba(15,23,42,0.08);
-            --toggle-text: #111827;
-        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', sans-serif;
-            background: var(--bg);
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
-            color: var(--text);
-            transition: background 0.25s ease, color 0.25s ease;
         }
         .card {
-            background: var(--card);
+            background: #1e1e2f;
             max-width: 560px;
             width: 100%;
             border-radius: 24px;
             padding: 32px 28px;
-            box-shadow: 0 20px 60px var(--shadow);
-            border: 1px solid var(--card-border);
-            transition: background 0.25s ease, border-color 0.25s ease;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            border: 1px solid rgba(255,255,255,0.06);
         }
         .card-header {
-            display: flex;
-            justify-content: space-between;
-            gap: 20px;
-            align-items: center;
+            text-align: center;
             margin-bottom: 28px;
         }
         .card-header h2 {
-            color: var(--text);
+            color: #f0f0ff;
             font-size: 26px;
         }
         .card-header p {
-            color: var(--muted);
+            color: #a0a0b8;
+        }
+        .card-header .file-badge {
+            display: inline-block;
+            background: #2a2a40;
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: #f7971e;
+            font-size: 14px;
+            margin-top: 8px;
         }
         .form-group {
             margin-bottom: 16px;
@@ -109,17 +79,6 @@
         }
         .btn:hover { transform: scale(1.01); box-shadow: 0 8px 28px rgba(247,151,30,0.35); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .theme-toggle {
-            border: none;
-            border-radius: 999px;
-            padding: 12px 16px;
-            background: var(--toggle-bg);
-            color: var(--toggle-text);
-            cursor: pointer;
-            font-weight: 700;
-            transition: transform 0.15s ease, background 0.15s ease;
-        }
-        .theme-toggle:hover { transform: translateY(-1px); }
         .spinner { display: none; text-align: center; margin-top: 18px; color: #a0a0b8; }
         .spinner.show { display: block; }
         .spinner .dot {
@@ -147,6 +106,47 @@
             margin: 0;
             word-break: break-all;
         }
+        .file-download-box {
+            background: #0f1f18;
+            padding: 24px 20px;
+            border-radius: 14px;
+            border-left: 5px solid #2ecc71;
+            margin-top: 16px;
+            display: none;
+            text-align: center;
+        }
+        .file-download-box .file-icon {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .file-download-box .file-name {
+            color: #e0eec0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .file-download-box .file-size {
+            color: #a0a0b8;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .file-download-box .btn-download {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 12px 30px;
+            background: #2ecc71;
+            border: none;
+            border-radius: 12px;
+            color: #0f1f18;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        .file-download-box .btn-download:hover {
+            background: #27ae60;
+        }
         .burn-notice {
             margin-top: 14px;
             padding: 12px 16px;
@@ -169,15 +169,17 @@
 <body>
 <div class="card">
     <div class="card-header">
-        <div>
-            <h2>🔐 Secure Secret</h2>
+        <h2>🔐 Secure Secret</h2>
+        {% if is_file %}
+            <p>📁 File sharing</p>
+            <div class="file-badge">📎 {{ filename }}</div>
+        {% else %}
             <p>{% if has_password %}Enter the password to unlock.{% else %}No password required — click Decrypt.{% endif %}</p>
-        </div>
-        <button type="button" class="theme-toggle" id="themeToggle">🌙 Dark</button>
+        {% endif %}
     </div>
 
     <div id="viewArea">
-        <div class="form-group">
+        <div class="form-group" id="passwordGroup">
             <label for="password">Password</label>
             <input type="password" id="password" placeholder="Enter the secret password..." 
                    {% if not has_password %}style="display:none;"{% endif %}>
@@ -192,8 +194,17 @@
 
         <div class="error" id="errorMsg"></div>
 
+        <!-- For Text -->
         <div class="secret-box" id="secretBox">
             <pre id="secretDisplay"></pre>
+        </div>
+
+        <!-- For Files -->
+        <div class="file-download-box" id="fileDownloadBox">
+            <span class="file-icon">📄</span>
+            <div class="file-name" id="fileNameDisplay"></div>
+            <div class="file-size" id="fileSizeDisplay"></div>
+            <button class="btn-download" id="downloadBtn">⬇️ Download File</button>
         </div>
 
         <div class="burn-notice" id="burnNotice">🔥 This secret has been destroyed and cannot be viewed again.</div>
@@ -207,6 +218,7 @@
 <script>
     const secretId = "{{ secret_id }}";
     const hasPassword = {{ 'true' if has_password else 'false' }};
+    const isFile = {{ 'true' if is_file else 'false' }};
 
     const decryptBtn = document.getElementById('decryptBtn');
     const passwordInput = document.getElementById('password');
@@ -214,9 +226,18 @@
     const errorMsg = document.getElementById('errorMsg');
     const secretBox = document.getElementById('secretBox');
     const secretDisplay = document.getElementById('secretDisplay');
+    const fileDownloadBox = document.getElementById('fileDownloadBox');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const fileSizeDisplay = document.getElementById('fileSizeDisplay');
+    const downloadBtn = document.getElementById('downloadBtn');
     const burnNotice = document.getElementById('burnNotice');
     const backBtn = document.getElementById('backBtn');
     const viewsInfo = document.getElementById('viewsInfo');
+
+    // Store decrypted data for file download
+    let decryptedData = null;
+    let decryptedFilename = null;
+    let decryptedContentType = null;
 
     if (!hasPassword) {
         passwordInput.style.display = 'none';
@@ -229,6 +250,7 @@
         spinner.classList.add('show');
         errorMsg.style.display = 'none';
         secretBox.style.display = 'none';
+        fileDownloadBox.style.display = 'none';
         burnNotice.style.display = 'none';
         viewsInfo.textContent = '';
 
@@ -241,14 +263,48 @@
                 body: formData
             });
 
+            // Check if response is a file download
+            const contentType = res.headers.get('content-type');
+            
+            if (contentType && contentType.includes('application/octet-stream')) {
+                // It's a file! Download it directly
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '{{ filename }}' || 'file';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                // Show success message
+                secretBox.style.display = 'block';
+                secretDisplay.textContent = '✅ File downloaded successfully!';
+                viewsInfo.textContent = '📁 File: {{ filename }}';
+                return;
+            }
+
             const data = await res.json();
 
             if (!res.ok) {
                 throw new Error(data.error || 'Failed to decrypt');
             }
 
-            secretDisplay.textContent = data.text;
-            secretBox.style.display = 'block';
+            if (isFile) {
+                // File mode - show download button
+                fileDownloadBox.style.display = 'block';
+                fileNameDisplay.textContent = data.filename || '{{ filename }}';
+                // Store data for download
+                decryptedData = data.text;
+                decryptedFilename = data.filename || '{{ filename }}';
+                decryptedContentType = data.content_type || 'application/octet-stream';
+                downloadBtn.style.display = 'block';
+            } else {
+                // Text mode - show text
+                secretBox.style.display = 'block';
+                secretDisplay.textContent = data.text;
+            }
 
             if (data.burned) {
                 burnNotice.style.display = 'block';
@@ -266,31 +322,34 @@
         spinner.classList.remove('show');
     });
 
+    // Download button handler for files
+    downloadBtn.addEventListener('click', () => {
+        if (decryptedData) {
+            // Convert base64 to blob
+            const byteCharacters = atob(decryptedData);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: decryptedContentType || 'application/octet-stream' });
+            
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = decryptedFilename || 'file';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    });
+
     backBtn.addEventListener('click', () => {
         window.location.href = '/';
     });
 
-    const themeToggle = document.getElementById('themeToggle');
-
-    function applyTheme(theme) {
-        document.body.dataset.theme = theme;
-        themeToggle.textContent = theme === 'light' ? '🌙 Dark' : '☀️ Light';
-        localStorage.setItem('theme', theme);
-    }
-
-    function initTheme() {
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        applyTheme(savedTheme);
-    }
-
-    function toggleTheme() {
-        const currentTheme = document.body.dataset.theme || 'dark';
-        applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
-    }
-
-    themeToggle.addEventListener('click', toggleTheme);
-    initTheme();
-
+    // Allow Enter key to trigger decrypt
     passwordInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') decryptBtn.click();
     });
