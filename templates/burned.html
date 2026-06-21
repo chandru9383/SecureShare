@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gone – SecureShare</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .card {
+            background: #1e1e2f;
+            max-width: 500px;
+            width: 100%;
+            border-radius: 24px;
+            padding: 40px 28px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .card h1 { font-size: 64px; margin-bottom: 10px; }
+        .card h2 { color: #f0f0ff; font-size: 28px; margin-bottom: 12px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; }
+        .theme-toggle {
+            border: none;
+            border-radius: 999px;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.1);
+            color: #f0f0ff;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        body[data-theme='light'] { background: #f3f4fb; color: #111827; }
+        body[data-theme='light'] .card { background: #ffffff; border-color: rgba(15,23,42,0.08); }
+        body[data-theme='light'] .card h2 { color: #111827; }
+        body[data-theme='light'] .btn { color: #121827; }
+        .card p { color: #a0a0b8; font-size: 16px; line-height: 1.6; }
+        .btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 14px 36px;
+            font-size: 17px;
+            font-weight: 700;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            color: #1a1a2e;
+            text-decoration: none;
+            transition: transform 0.15s, box-shadow 0.2s;
+        }
+        .btn:hover { transform: scale(1.03); box-shadow: 0 8px 28px rgba(247,151,30,0.35); }
+        .burn-icon { font-size: 80px; display: block; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+<div class="card">
+        <div class="card-header">
+            <span class="burn-icon">🔥</span>
+            <button type="button" class="theme-toggle" id="themeToggle">☀️ Light</button>
+        </div>
+        <h2>Secret Destroyed</h2>
+        <p>{{ message or "This secret has expired, been viewed too many times, or never existed." }}</p>
+        <p style="margin-top:10px; font-size:14px; color:#6a6a88;">🔐 Zero-knowledge. No data was stored unencrypted.</p>
+        <a href="/" class="btn">📝 Create a New Secret</a>
+    </div>
+    <script>
+        const toggle = document.getElementById('themeToggle');
+        function applyTheme(theme) {
+            document.body.dataset.theme = theme;
+            toggle.textContent = theme === 'light' ? '🌙 Dark' : '☀️ Light';
+            localStorage.setItem('theme', theme);
+        }
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            applyTheme(savedTheme);
+        }
+        toggle.addEventListener('click', () => {
+            const current = document.body.dataset.theme || 'dark';
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+        });
+        initTheme();
+    </script>
+</body>
+</html>

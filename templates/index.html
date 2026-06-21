@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureShare – Self-Destructing Secrets</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --card: #1e1e2f;
+            --card-border: rgba(255,255,255,0.06);
+            --text: #f0f0ff;
+            --muted: #a0a0b8;
+            --surface: #2a2a40;
+            --surface-border: #3a3a55;
+            --input-text: #f0f0ff;
+            --button: linear-gradient(135deg, #f7971e, #ffd200);
+            --button-text: #1a1a2e;
+            --result-bg: #1a3a2a;
+            --result-border: #2ecc71;
+            --link-bg: #0f1f18;
+            --link-border: #2a5a3f;
+            --toggle-bg: rgba(255,255,255,0.08);
+            --toggle-text: #f0f0ff;
+            --shadow: rgba(0,0,0,0.8);
+        }
+        body[data-theme='light'] {
+            --bg: #f3f4fb;
+            --card: #ffffff;
+            --card-border: rgba(15,23,42,0.08);
+            --text: #111827;
+            --muted: #4b5563;
+            --surface: #f8fafc;
+            --surface-border: #d1d5db;
+            --input-text: #111827;
+            --button: linear-gradient(135deg, #2563eb, #38bdf8);
+            --button-text: #ffffff;
+            --result-bg: #eef2ff;
+            --result-border: #2563eb;
+            --link-bg: #ffffff;
+            --link-border: #cbd5e1;
+            --toggle-bg: rgba(15,23,42,0.08);
+            --toggle-text: #111827;
+            --shadow: rgba(15,23,42,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+        .card {
+            background: var(--card);
+            max-width: 560px;
+            width: 100%;
+            border-radius: 24px;
+            padding: 32px 28px;
+            box-shadow: 0 20px 60px var(--shadow);
+            border: 1px solid var(--card-border);
+            transition: background 0.25s ease, border-color 0.25s ease;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 28px;
+        }
+        .card-header > div {
+            min-width: 0;
+        }
+        .card-header h1 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-header p {
+            color: var(--muted);
+            margin-top: 8px;
+        }
+        .theme-toggle {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 16px;
+            background: var(--toggle-bg);
+            color: var(--toggle-text);
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+        .theme-toggle:hover { transform: translateY(-1px); }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            color: var(--text);
+            opacity: 0.8;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+        .form-group textarea, .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 2px solid var(--surface-border);
+            border-radius: 12px;
+            color: var(--input-text);
+            font-size: 15px;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .form-group textarea:focus, .form-group input:focus, .form-group select:focus {
+            border-color: #f7971e;
+        }
+        .form-group textarea { min-height: 110px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 17px;
+            font-weight: 700;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            background: var(--button);
+            color: var(--button-text);
+            transition: transform 0.15s, box-shadow 0.2s;
+            margin-top: 6px;
+        }
+        .btn:hover { transform: scale(1.01); box-shadow: 0 8px 28px rgba(0,0,0,0.18); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .result-box {
+            margin-top: 24px;
+            padding: 18px 20px;
+            border-radius: 14px;
+            background: var(--result-bg);
+            border-left: 5px solid var(--result-border);
+            display: none;
+            animation: fadeUp 0.4s ease;
+        }
+        .result-box.show { display: block; }
+        .result-box .link-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .result-box .link-wrapper input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--link-bg);
+            border: 1px solid var(--link-border);
+            border-radius: 10px;
+            color: var(--input-text);
+            font-size: 14px;
+            outline: none;
+            min-width: 150px;
+        }
+        .result-box .link-wrapper button {
+            padding: 10px 18px;
+            background: #2ecc71;
+            border: none;
+            border-radius: 10px;
+            color: #0f1f18;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .result-box .details {
+            color: #7ddfa0;
+            font-size: 13px;
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+        .qr-container {
+            margin-top: 18px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        .qr-container.show { display: flex; }
+        .qr-container img {
+            width: 190px;
+            max-width: 100%;
+            border-radius: 18px;
+            background: #fff;
+            padding: 12px;
+            box-shadow: 0 18px 40px rgba(0,0,0,0.12);
+        }
+        .qr-container p {
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+        }
+        .spinner { display: none; text-align: center; margin-top: 18px; color: var(--muted); }
+        .spinner.show { display: block; }
+        .error-message {
+            display: none;
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: rgba(255, 84, 84, 0.13);
+            border: 1px solid rgba(255, 84, 84, 0.25);
+            color: #ffb3b3;
+            font-weight: 600;
+        }
+        .spinner .dot {
+            display: inline-block; width: 12px; height: 12px;
+            background: #f7971e; border-radius: 50%; margin: 0 4px;
+            animation: bounce 1.4s infinite both;
+        }
+        .spinner .dot:nth-child(1) { animation-delay: -0.32s; }
+        .spinner .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        @media (max-width: 480px) {
+            .card { padding: 20px 16px; }
+            .form-row { grid-template-columns: 1fr; }
+            .card-header { flex-direction: column; align-items: flex-start; }
+            .theme-toggle { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h1>🔐 SecureShare</h1>
+            <p>Your secret self-destructs after reading</p>
+        </div>
+        <button type="button" class="theme-toggle" id="themeToggle">☀️ Light</button>
+    </div>
+
+    <form id="createForm">
+        <div class="form-group">
+            <label for="text">Your Secret (Password / OTP / Message)</label>
+            <textarea id="text" placeholder="e.g., Bank OTP: 123456" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Optional Password (extra security)</label>
+            <input type="password" id="password" placeholder="Leave blank for no password">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="views">Self-Destruct After</label>
+                <select id="views">
+                    <option value="1">1 View</option>
+                    <option value="3" selected>3 Views</option>
+                    <option value="5">5 Views</option>
+                    <option value="10">10 Views</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="expiry">Expires</label>
+                <select id="expiry">
+                    <option value="never">Never</option>
+                    <option value="1">1 Hour</option>
+                    <option value="6">6 Hours</option>
+                    <option value="24" selected>24 Hours</option>
+                    <option value="72">3 Days</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn" id="createBtn">🔒 Generate Secure Link</button>
+
+        <div class="spinner" id="spinner">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span style="display:block; margin-top:8px;">Encrypting &amp; saving securely…</span>
+        </div>
+        <div class="error-message" id="createError" role="alert" aria-live="assertive"></div>
+    </form>
+
+    <div class="result-box" id="resultBox">
+        <div style="font-weight: 600; color: #7ddfa0;">✅ Secret Created!</div>
+        <div class="link-wrapper">
+            <input type="text" id="linkOutput" readonly>
+            <button type="button" id="copyBtn">📋 Copy</button>
+        </div>
+        <div class="qr-container" id="qrContainer">
+            <img id="qrImage" alt="QR code for the secure link">
+            <p>Scan this QR code to open the secret on your phone.</p>
+        </div>
+        <div class="details" id="detailsOutput"></div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('createForm');
+    const createBtn = document.getElementById('createBtn');
+    const spinner = document.getElementById('spinner');
+    const createError = document.getElementById('createError');
+    const resultBox = document.getElementById('resultBox');
+    const linkOutput = document.getElementById('linkOutput');
+    const detailsOutput = document.getElementById('detailsOutput');
+    const qrImage = document.getElementById('qrImage');
+    const qrContainer = document.getElementById('qrContainer');
+    const themeToggle = document.getElementById('themeToggle');
+
+    function applyTheme(theme) {
+        document.body.dataset.theme = theme;
+        themeToggle.textContent = theme === 'light' ? '🌙 Dark' : '☀️ Light';
+        localStorage.setItem('theme', theme);
+    }
+
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.body.dataset.theme || 'dark';
+        applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    }
+
+    themeToggle.addEventListener('click', toggleTheme);
+    initTheme();
+
+    function showCreateError(message) {
+        createError.textContent = message;
+        createError.style.display = 'block';
+    }
+
+    function clearCreateError() {
+        createError.textContent = '';
+        createError.style.display = 'none';
+    }
+
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            try {
+                linkOutput.select();
+                return document.execCommand('copy');
+            } catch (fallbackErr) {
+                return false;
+            }
+        }
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const text = document.getElementById('text').value.trim();
+        if (!text) {
+            showCreateError('Please enter a secret before generating a link.');
+            return;
+        }
+
+        clearCreateError();
+
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('password', document.getElementById('password').value);
+        formData.append('views', document.getElementById('views').value);
+        formData.append('expiry', document.getElementById('expiry').value);
+
+        createBtn.disabled = true;
+        spinner.classList.add('show');
+        resultBox.classList.remove('show');
+
+        try {
+            const res = await fetch('/create', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Failed to create');
+
+            linkOutput.value = data.link;
+            detailsOutput.textContent = `🔹 ${data.views} view(s) left · 🔹 Expires: ${data.expires}`;
+            qrImage.src = '/qrcode/' + data.id;
+            qrContainer.classList.add('show');
+            resultBox.classList.add('show');
+            linkOutput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (err) {
+            showCreateError('Error: ' + err.message);
+        }
+
+        createBtn.disabled = false;
+        spinner.classList.remove('show');
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+        const copied = await copyToClipboard(linkOutput.value);
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = copied ? '✅ Copied!' : '⚠️ Copy Failed';
+        setTimeout(() => btn.textContent = '📋 Copy', 2000);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Secret – SecureShare</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --card: #1e1e2f;
+            --card-border: rgba(255,255,255,0.06);
+            --text: #f0f0ff;
+            --muted: #a0a0b8;
+            --surface: #2a2a40;
+            --surface-border: #3a3a55;
+            --input-text: #f0f0ff;
+            --button: linear-gradient(135deg, #f7971e, #ffd200);
+            --button-text: #1a1a2e;
+            --secondary: #3a3a55;
+            --shadow: rgba(0,0,0,0.8);
+            --toggle-bg: rgba(255,255,255,0.08);
+            --toggle-text: #f0f0ff;
+        }
+        body[data-theme='light'] {
+            --bg: #f3f4fb;
+            --card: #ffffff;
+            --card-border: rgba(15,23,42,0.08);
+            --text: #111827;
+            --muted: #4b5563;
+            --surface: #f8fafc;
+            --surface-border: #d1d5db;
+            --input-text: #111827;
+            --button: linear-gradient(135deg, #2563eb, #38bdf8);
+            --button-text: #ffffff;
+            --secondary: #d1d5db;
+            --shadow: rgba(15,23,42,0.12);
+            --toggle-bg: rgba(15,23,42,0.08);
+            --toggle-text: #111827;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: var(--text);
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+        .card {
+            background: var(--card);
+            max-width: 560px;
+            width: 100%;
+            border-radius: 24px;
+            padding: 32px 28px;
+            box-shadow: 0 20px 60px var(--shadow);
+            border: 1px solid var(--card-border);
+            transition: background 0.25s ease, border-color 0.25s ease;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 28px;
+        }
+        .card-header h2 {
+            color: var(--text);
+            font-size: 26px;
+        }
+        .card-header p {
+            color: var(--muted);
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            color: #c8c8e0;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: #2a2a40;
+            border: 2px solid #3a3a55;
+            border-radius: 12px;
+            color: #f0f0ff;
+            font-size: 15px;
+            outline: none;
+        }
+        .form-group input:focus { border-color: #f7971e; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 17px;
+            font-weight: 700;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            color: #1a1a2e;
+            transition: transform 0.15s, box-shadow 0.2s;
+        }
+        .btn:hover { transform: scale(1.01); box-shadow: 0 8px 28px rgba(247,151,30,0.35); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .theme-toggle {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 16px;
+            background: var(--toggle-bg);
+            color: var(--toggle-text);
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+        .theme-toggle:hover { transform: translateY(-1px); }
+        .spinner { display: none; text-align: center; margin-top: 18px; color: #a0a0b8; }
+        .spinner.show { display: block; }
+        .spinner .dot {
+            display: inline-block; width: 12px; height: 12px;
+            background: #f7971e; border-radius: 50%; margin: 0 4px;
+            animation: bounce 1.4s infinite both;
+        }
+        .spinner .dot:nth-child(1) { animation-delay: -0.32s; }
+        .spinner .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        .error { color: #e74c3c; margin-top: 12px; font-weight: 600; display: none; }
+        .secret-box {
+            background: #0f1f18;
+            padding: 18px 20px;
+            border-radius: 14px;
+            border-left: 5px solid #f7971e;
+            margin-top: 16px;
+            display: none;
+        }
+        .secret-box pre {
+            color: #e0eec0;
+            font-size: 16px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            word-break: break-all;
+        }
+        .burn-notice {
+            margin-top: 14px;
+            padding: 12px 16px;
+            background: #2a1a1a;
+            border-radius: 12px;
+            border-left: 5px solid #e74c3c;
+            color: #f0a0a0;
+            font-size: 14px;
+            display: none;
+        }
+        .btn-back {
+            margin-top: 16px;
+            background: #3a3a55;
+            color: #f0f0ff;
+        }
+        .btn-back:hover { background: #4a4a6a; box-shadow: none; }
+        .info-text { color: #7ddfa0; font-size: 14px; margin-top: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h2>🔐 Secure Secret</h2>
+            <p>{% if has_password %}Enter the password to unlock.{% else %}No password required — click Decrypt.{% endif %}</p>
+        </div>
+        <button type="button" class="theme-toggle" id="themeToggle">🌙 Dark</button>
+    </div>
+
+    <div id="viewArea">
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Enter the secret password..." 
+                   {% if not has_password %}style="display:none;"{% endif %}>
+        </div>
+
+        <button class="btn" id="decryptBtn">🔓 Decrypt &amp; View</button>
+
+        <div class="spinner" id="spinner">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span style="display:block; margin-top:8px;">Decrypting…</span>
+        </div>
+
+        <div class="error" id="errorMsg"></div>
+
+        <div class="secret-box" id="secretBox">
+            <pre id="secretDisplay"></pre>
+        </div>
+
+        <div class="burn-notice" id="burnNotice">🔥 This secret has been destroyed and cannot be viewed again.</div>
+
+        <button class="btn btn-back" id="backBtn">🏠 Create a New Secret</button>
+        
+        <div class="info-text" id="viewsInfo"></div>
+    </div>
+</div>
+
+<script>
+    const secretId = "{{ secret_id }}";
+    const hasPassword = {{ 'true' if has_password else 'false' }};
+
+    const decryptBtn = document.getElementById('decryptBtn');
+    const passwordInput = document.getElementById('password');
+    const spinner = document.getElementById('spinner');
+    const errorMsg = document.getElementById('errorMsg');
+    const secretBox = document.getElementById('secretBox');
+    const secretDisplay = document.getElementById('secretDisplay');
+    const burnNotice = document.getElementById('burnNotice');
+    const backBtn = document.getElementById('backBtn');
+    const viewsInfo = document.getElementById('viewsInfo');
+
+    if (!hasPassword) {
+        passwordInput.style.display = 'none';
+    }
+
+    decryptBtn.addEventListener('click', async () => {
+        const password = passwordInput.value;
+
+        decryptBtn.disabled = true;
+        spinner.classList.add('show');
+        errorMsg.style.display = 'none';
+        secretBox.style.display = 'none';
+        burnNotice.style.display = 'none';
+        viewsInfo.textContent = '';
+
+        try {
+            const formData = new FormData();
+            formData.append('password', password);
+
+            const res = await fetch('/s/' + secretId + '/decrypt', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to decrypt');
+            }
+
+            secretDisplay.textContent = data.text;
+            secretBox.style.display = 'block';
+
+            if (data.burned) {
+                burnNotice.style.display = 'block';
+                viewsInfo.textContent = '🔥 Destroyed after viewing.';
+            } else {
+                viewsInfo.textContent = '🔹 ' + data.views_left + ' view(s) remaining.';
+            }
+
+        } catch (err) {
+            errorMsg.textContent = '❌ ' + err.message;
+            errorMsg.style.display = 'block';
+        }
+
+        decryptBtn.disabled = false;
+        spinner.classList.remove('show');
+    });
+
+    backBtn.addEventListener('click', () => {
+        window.location.href = '/';
+    });
+
+    const themeToggle = document.getElementById('themeToggle');
+
+    function applyTheme(theme) {
+        document.body.dataset.theme = theme;
+        themeToggle.textContent = theme === 'light' ? '🌙 Dark' : '☀️ Light';
+        localStorage.setItem('theme', theme);
+    }
+
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.body.dataset.theme || 'dark';
+        applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    }
+
+    themeToggle.addEventListener('click', toggleTheme);
+    initTheme();
+
+    passwordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') decryptBtn.click();
+    });
+</script>
+</body>
+</html>
