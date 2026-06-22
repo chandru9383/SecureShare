@@ -234,7 +234,6 @@
     const backBtn = document.getElementById('backBtn');
     const viewsInfo = document.getElementById('viewsInfo');
 
-    // Store decrypted data for file download
     let decryptedData = null;
     let decryptedFilename = null;
     let decryptedContentType = null;
@@ -263,25 +262,33 @@
                 body: formData
             });
 
-            // Check if response is a file download
-            const contentType = res.headers.get('content-type');
-            
-            if (contentType && contentType.includes('application/octet-stream')) {
-                // It's a file! Download it directly
+            const contentType = res.headers.get('content-type') || '';
+
+            if (contentType.includes('application/octet-stream') || 
+                contentType.includes('application/pdf') ||
+                contentType.includes('image/') ||
+                contentType.includes('text/plain')) {
+                
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = '{{ filename }}' || 'file';
+                
+                let filename = '{{ filename }}' || 'file';
+                const contentDisposition = res.headers.get('content-disposition');
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="(.+)"/);
+                    if (match) filename = match[1];
+                }
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 
-                // Show success message
                 secretBox.style.display = 'block';
                 secretDisplay.textContent = '✅ File downloaded successfully!';
-                viewsInfo.textContent = '📁 File: {{ filename }}';
+                viewsInfo.textContent = '📁 File: ' + filename;
                 return;
             }
 
@@ -292,16 +299,13 @@
             }
 
             if (isFile) {
-                // File mode - show download button
                 fileDownloadBox.style.display = 'block';
                 fileNameDisplay.textContent = data.filename || '{{ filename }}';
-                // Store data for download
                 decryptedData = data.text;
                 decryptedFilename = data.filename || '{{ filename }}';
                 decryptedContentType = data.content_type || 'application/octet-stream';
                 downloadBtn.style.display = 'block';
             } else {
-                // Text mode - show text
                 secretBox.style.display = 'block';
                 secretDisplay.textContent = data.text;
             }
@@ -322,26 +326,29 @@
         spinner.classList.remove('show');
     });
 
-    // Download button handler for files
     downloadBtn.addEventListener('click', () => {
         if (decryptedData) {
-            // Convert base64 to blob
-            const byteCharacters = atob(decryptedData);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            try {
+                const byteCharacters = atob(decryptedData);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: decryptedContentType || 'application/octet-stream' });
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = decryptedFilename || 'file';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (e) {
+                errorMsg.textContent = '❌ Error downloading file: ' + e.message;
+                errorMsg.style.display = 'block';
             }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: decryptedContentType || 'application/octet-stream' });
-            
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = decryptedFilename || 'file';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
         }
     });
 
@@ -349,7 +356,6 @@
         window.location.href = '/';
     });
 
-    // Allow Enter key to trigger decrypt
     passwordInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') decryptBtn.click();
     });
